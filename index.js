@@ -21,6 +21,11 @@ export async function connectToMongoDB() {
 }
 connectToMongoDB();
 
+app.post('/add-booking', (req, res) => {
+    console.log("Api is working");
+    res.send({"message":"Booking added successfully"})
+});
+http://localhost:8000/add-booking
 app.get("/", (req, res) => {
     res.send("server is running");
 });
