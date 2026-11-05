@@ -32,7 +32,6 @@ app.get("/", (req, res) => {
   res.send("StudioNest server is running");
 });
 
-// ================= STUDIOS =================
 
 // Get all studios
 app.get("/studios", async (req, res) => {
@@ -169,7 +168,7 @@ app.delete("/studios/:id", async (req, res) => {
   }
 });
 
-// ================= BOOKINGS =================
+
 
 // Add booking
 app.post("/bookings", async (req, res) => {
