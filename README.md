@@ -2,7 +2,7 @@
 
 The backend REST API for StudioNest, a peer-to-peer creative studio booking platform.
 
-💻 **Server Repository:** [Add Your Server GitHub URL]
+💻 **Server Repository:**https://github.com/saedamim/studionest-ss.git
 
 ---
 
@@ -79,7 +79,7 @@ It provides RESTful APIs for studio management, user-specific listings, and book
 
 **Name:**Saeda Yeasmin
 
-**GitHub:** [Your GitHub Profile](YOUR_GITHUB_PROFILE_URL)
+**GitHub:**https://github.com/saedamim
 
 **Project:** StudioNest
 
