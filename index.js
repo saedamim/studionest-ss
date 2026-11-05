@@ -6,11 +6,11 @@ import "dotenv/config";
 
 const app = express();
 const PORT = Number(process.env.PORT || 8000);
-const AUTH_URL = process.env.BETTER_AUTH_URL ||
-  (process.env.NODE_ENV === "production" ? undefined : "http://localhost:3000");
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
+const AUTH_URL = process.env.BETTER_AUTH_URL;
+const allowedOrigins = (process.env.FRONTEND_URL || "")
   .split(",")
-  .map((origin) => origin.trim());
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI is required");
 if (!AUTH_URL) throw new Error("BETTER_AUTH_URL is required for JWT validation");
