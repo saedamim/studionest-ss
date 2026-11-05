@@ -18,7 +18,7 @@ if (!AUTH_URL) throw new Error("BETTER_AUTH_URL is required for JWT validation")
 const client = new MongoClient(process.env.MONGODB_URI);
 const jwks = createRemoteJWKSet(new URL("/api/auth/jwks", AUTH_URL));
 let db;
-
+ 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
