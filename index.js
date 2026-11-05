@@ -11,7 +11,6 @@ const allowedOrigins = (process.env.FRONTEND_URL || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-
 if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI is required");
 if (!AUTH_URL) throw new Error("BETTER_AUTH_URL is required for JWT validation");
 
@@ -103,6 +102,7 @@ async function requireAuth(req, res, next) {
       email: typeof payload.email === "string" ? payload.email : "",
       name: typeof payload.name === "string" ? payload.name : "",
       image: typeof payload.image === "string" ? payload.image : null,
+      emailVerified: payload.emailVerified === true,
     };
     next();
   } catch {
@@ -112,6 +112,13 @@ async function requireAuth(req, res, next) {
 
 function isValidId(id) {
   return ObjectId.isValid(id) && new ObjectId(id).toString() === id;
+}
+
+function studioOwnerFilter(user) {
+  const owners = [{ ownerId: user.id }];
+ 
+  if (user.emailVerified && user.email) owners.push({ ownerEmail: user.email });
+  return { $or: owners };
 }
 
 function isoDateIsValid(value) {
@@ -265,7 +272,7 @@ app.post("/studios", requireAuth, async (req, res, next) => {
 
 app.get("/my-listings", requireAuth, async (req, res, next) => {
   try {
-    const studios = await db.collection("studios").find({ ownerId: req.user.id }).sort({ createdAt: -1 }).toArray();
+    const studios = await db.collection("studios").find(studioOwnerFilter(req.user)).sort({ createdAt: -1 }).toArray();
     res.json(studios);
   } catch (error) { next(error); }
 });
@@ -273,7 +280,7 @@ app.get("/my-listings", requireAuth, async (req, res, next) => {
 app.get("/my-listings/:id", requireAuth, async (req, res, next) => {
   if (!isValidId(req.params.id)) return sendError(res, 400, "Invalid studio ID.");
   try {
-    const studio = await db.collection("studios").findOne({ _id: new ObjectId(req.params.id), ownerId: req.user.id });
+    const studio = await db.collection("studios").findOne({ _id: new ObjectId(req.params.id), ...studioOwnerFilter(req.user) });
     if (!studio) return sendError(res, 404, "Studio listing not found for this user.");
     res.json(studio);
   } catch (error) { next(error); }
@@ -286,7 +293,7 @@ app.patch("/studios/:id", requireAuth, async (req, res, next) => {
   if (Object.keys(parsed.value).length === 0) return sendError(res, 400, "Provide at least one studio field to update.");
   try {
     const result = await db.collection("studios").updateOne(
-      { _id: new ObjectId(req.params.id), ownerId: req.user.id },
+      { _id: new ObjectId(req.params.id), ...studioOwnerFilter(req.user) },
       { $set: { ...parsed.value, updatedAt: new Date() } },
     );
     if (!result.matchedCount) return sendError(res, 404, "Studio not found or you do not own it.");
@@ -298,7 +305,7 @@ app.delete("/studios/:id", requireAuth, async (req, res, next) => {
   if (!isValidId(req.params.id)) return sendError(res, 400, "Invalid studio ID.");
   try {
     const studioId = new ObjectId(req.params.id);
-    const studio = await db.collection("studios").findOne({ _id: studioId, ownerId: req.user.id });
+    const studio = await db.collection("studios").findOne({ _id: studioId, ...studioOwnerFilter(req.user) });
     if (!studio) return sendError(res, 404, "Studio not found or you do not own it.");
     const activeBooking = await db.collection("bookings").findOne({ studioId: studioId.toString(), status: { $in: ["Pending", "Confirmed"] } });
     if (activeBooking) return sendError(res, 409, "This studio has active bookings and cannot be deleted yet.");
@@ -324,7 +331,9 @@ app.post("/bookings", requireAuth, async (req, res, next) => {
   try {
     const studio = await db.collection("studios").findOne({ _id: new ObjectId(studioId), status: { $ne: "Draft" } });
     if (!studio) return sendError(res, 404, "Studio not found.");
-    if (studio.ownerId === req.user.id) return sendError(res, 403, "You cannot book your own studio.");
+    const isOwnStudio = studio.ownerId === req.user.id ||
+      (req.user.emailVerified && req.user.email && studio.ownerEmail === req.user.email);
+    if (isOwnStudio) return sendError(res, 403, "You cannot book your own studio.");
     if (Number.isInteger(studio.capacity) && guests > studio.capacity) return sendError(res, 400, "Guest count exceeds studio capacity.");
 
     const conflict = await db.collection("bookings").findOne({
