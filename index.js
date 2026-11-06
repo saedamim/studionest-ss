@@ -416,3 +416,8 @@ startServer().catch((error) => {
   console.error("Could not start StudioNest API:", error);
   process.exitCode = 1;
 });
+
+
+
+
+export default app;
