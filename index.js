@@ -5,15 +5,25 @@ import "dotenv/config";
 
 const app = express();
 const PORT = Number(process.env.PORT || 8000);
-const AUTH_URL = process.env.BETTER_AUTH_URL;
+const AUTH_URL = process.env.BETTER_AUTH_URL.trim();
 const allowedOrigins = (process.env.FRONTEND_URL || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI is required");
-// if (!AUTH_URL) throw new Error("BETTER_AUTH_URL is required for JWT validation");
+
+console.log("MongoDB ENV Check:", {
+  exists: Boolean(process.env.MONGODB_URI.trim()),
+  environment: process.env.VERCEL_ENV,
+});
+
+if (!process.env.MONGODB_URI.trim()) {
+  throw new Error("MONGODB_URI is required");
+}
+if (!AUTH_URL)
+  throw new Error("BETTER_AUTH_URL is required for JWT validation");
 
 const client = new MongoClient(process.env.MONGODB_URI);
+
 const jwks = createRemoteJWKSet(new URL("/api/auth/jwks", AUTH_URL));
 let db;
 
