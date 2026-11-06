@@ -5,27 +5,32 @@ import "dotenv/config";
 
 const app = express();
 const PORT = Number(process.env.PORT || 8000);
-const AUTH_URL = process.env.BETTER_AUTH_URL.trim();
+const MONGODB_URI = process.env.MONGODB_URI?.trim();
+const AUTH_URL = process.env.BETTER_AUTH_URL?.trim();
 const allowedOrigins = (process.env.FRONTEND_URL || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-console.log("MongoDB ENV Check:", {
-  exists: Boolean(process.env.MONGODB_URI.trim()),
+// Validate environment variables
+if (!MONGODB_URI) {
+  throw new Error("MONGODB_URI is missing in Vercel Environment Variables");
+}
+
+if (!AUTH_URL) {
+  throw new Error("BETTER_AUTH_URL is missing in Vercel Environment Variables");
+}
+
+console.log("Environment check:", {
+  mongodb: Boolean(MONGODB_URI),
+  authUrl: Boolean(AUTH_URL),
+  frontendUrl: Boolean(process.env.FRONTEND_URL),
   environment: process.env.VERCEL_ENV,
 });
 
-if (!process.env.MONGODB_URI.trim()) {
-  throw new Error("MONGODB_URI is required");
-}
-if (!AUTH_URL)
-  throw new Error("BETTER_AUTH_URL is required for JWT validation");
-
-const client = new MongoClient(process.env.MONGODB_URI);
+const client = new MongoClient(MONGODB_URI);
 
 const jwks = createRemoteJWKSet(new URL("/api/auth/jwks", AUTH_URL));
-let db;
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -561,7 +566,7 @@ app.use((error, _req, res, _next) => {
 
 async function startServer() {
   await client.connect();
-  db = client.db("studionest");
+  let db = client.db("studionest");
   await Promise.all([
     db.collection("studios").createIndex({ ownerId: 1 }),
     db.collection("studios").createIndex({ status: 1, rating: -1 }),
