@@ -32,6 +32,8 @@ const client = new MongoClient(MONGODB_URI);
 
 const jwks = createRemoteJWKSet(new URL("/api/auth/jwks", AUTH_URL));
 
+let db;
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
@@ -566,7 +568,11 @@ app.use((error, _req, res, _next) => {
 
 async function startServer() {
   await client.connect();
-  let db = client.db("studionest");
+
+  db = client.db("studionest");
+
+  console.log("MongoDB connected successfully!");
+
   await Promise.all([
     db.collection("studios").createIndex({ ownerId: 1 }),
     db.collection("studios").createIndex({ status: 1, rating: -1 }),
@@ -579,6 +585,7 @@ async function startServer() {
       endMinutes: 1,
     }),
   ]);
+
   // Local development fallback (Vercel will ignore this block)
   if (process.env.NODE_ENV !== "production") {
     app.listen(PORT, () =>
