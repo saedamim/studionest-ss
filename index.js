@@ -1,4 +1,3 @@
-
 import express from "express";
 import { MongoClient, ObjectId } from "mongodb";
 import { createRemoteJWKSet, jwtVerify } from "jose";
@@ -17,15 +16,21 @@ if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI is required");
 const client = new MongoClient(process.env.MONGODB_URI);
 const jwks = createRemoteJWKSet(new URL("/api/auth/jwks", AUTH_URL));
 let db;
- 
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Credentials", "true");
-    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Authorization, Content-Type",
+    );
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PATCH, DELETE, OPTIONS",
+    );
   }
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
@@ -38,7 +43,11 @@ function sendError(res, status, message) {
 }
 
 function isValidText(value, maxLength = 200) {
-  return typeof value === "string" && value.trim().length > 0 && value.trim().length <= maxLength;
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.trim().length <= maxLength
+  );
 }
 
 function isHttpUrl(value) {
@@ -54,8 +63,17 @@ function isHttpUrl(value) {
 function parseStudioInput(body, partial = false) {
   body = body && typeof body === "object" && !Array.isArray(body) ? body : {};
   const allowedFields = [
-    "name", "category", "location", "hourlyRate", "securityDeposit",
-    "capacity", "description", "imageUrl", "images", "amenities", "availability",
+    "name",
+    "category",
+    "location",
+    "hourlyRate",
+    "securityDeposit",
+    "capacity",
+    "description",
+    "imageUrl",
+    "images",
+    "amenities",
+    "availability",
   ];
   const input = {};
   for (const field of allowedFields) {
@@ -64,23 +82,39 @@ function parseStudioInput(body, partial = false) {
 
   const requiredTextFields = ["name", "category", "location", "description"];
   for (const field of requiredTextFields) {
-    if ((!partial || Object.hasOwn(input, field)) && !isValidText(input[field], field === "description" ? 10000 : 160)) {
+    if (
+      (!partial || Object.hasOwn(input, field)) &&
+      !isValidText(input[field], field === "description" ? 10000 : 160)
+    ) {
       return { error: `${field} is required and must be valid.` };
     }
   }
   for (const field of ["hourlyRate", "securityDeposit", "capacity"]) {
     if (partial && !Object.hasOwn(input, field)) continue;
     const value = input[field];
-    if (typeof value !== "number" || !Number.isFinite(value) || value < (field === "capacity" ? 1 : 0)) {
+    if (
+      typeof value !== "number" ||
+      !Number.isFinite(value) ||
+      value < (field === "capacity" ? 1 : 0)
+    ) {
       return { error: `${field} must be a valid non-negative number.` };
     }
-    if (field === "capacity" && !Number.isInteger(value)) return { error: "capacity must be a whole number." };
+    if (field === "capacity" && !Number.isInteger(value))
+      return { error: "capacity must be a whole number." };
   }
-  if (Object.hasOwn(input, "imageUrl") && input.imageUrl && !isHttpUrl(input.imageUrl)) {
+  if (
+    Object.hasOwn(input, "imageUrl") &&
+    input.imageUrl &&
+    !isHttpUrl(input.imageUrl)
+  ) {
     return { error: "imageUrl must be an http or https URL." };
   }
   for (const field of ["images", "amenities", "availability"]) {
-    if (Object.hasOwn(input, field) && (!Array.isArray(input[field]) || input[field].some((item) => typeof item !== "string"))) {
+    if (
+      Object.hasOwn(input, field) &&
+      (!Array.isArray(input[field]) ||
+        input[field].some((item) => typeof item !== "string"))
+    ) {
       return { error: `${field} must be an array of strings.` };
     }
   }
@@ -89,14 +123,16 @@ function parseStudioInput(body, partial = false) {
 
 async function requireAuth(req, res, next) {
   const authorization = req.headers.authorization;
-  if (!authorization?.startsWith("Bearer ")) return sendError(res, 401, "Authentication required.");
+  if (!authorization?.startsWith("Bearer "))
+    return sendError(res, 401, "Authentication required.");
 
   try {
     const { payload } = await jwtVerify(authorization.slice(7), jwks, {
       issuer: AUTH_URL,
       audience: AUTH_URL,
     });
-    if (typeof payload.sub !== "string" || !payload.sub) return sendError(res, 401, "Invalid access token.");
+    if (typeof payload.sub !== "string" || !payload.sub)
+      return sendError(res, 401, "Invalid access token.");
     req.user = {
       id: payload.sub,
       email: typeof payload.email === "string" ? payload.email : "",
@@ -116,15 +152,19 @@ function isValidId(id) {
 
 function studioOwnerFilter(user) {
   const owners = [{ ownerId: user.id }];
- 
+
   if (user.emailVerified && user.email) owners.push({ ownerEmail: user.email });
   return { $or: owners };
 }
 
 function isoDateIsValid(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
+    return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
-  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  return (
+    Number.isFinite(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
 }
 
 function publicStudio(studio) {
@@ -134,12 +174,15 @@ function publicStudio(studio) {
 }
 
 function timeToMinutes(value) {
-  if (typeof value !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return null;
+  if (typeof value !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value))
+    return null;
   const [hours, minutes] = value.split(":").map(Number);
   return hours * 60 + minutes;
 }
 
-app.get("/", (_req, res) => res.json({ message: "StudioNest server is running" }));
+app.get("/", (_req, res) =>
+  res.json({ message: "StudioNest server is running" }),
+);
 
 app.post("/add-sample-studios", async (req, res) => {
   const studios = [
@@ -222,32 +265,55 @@ app.post("/add-sample-studios", async (req, res) => {
 app.get("/studios", async (req, res, next) => {
   try {
     const filter = { status: { $ne: "Draft" } };
-    if (typeof req.query.category === "string" && req.query.category) filter.category = req.query.category;
+    if (typeof req.query.category === "string" && req.query.category)
+      filter.category = req.query.category;
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
-    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 24));
+    const limit = Math.min(
+      50,
+      Math.max(1, Number.parseInt(req.query.limit, 10) || 24),
+    );
     const [studios, total] = await Promise.all([
-      db.collection("studios").find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray(),
+      db
+        .collection("studios")
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray(),
       db.collection("studios").countDocuments(filter),
     ]);
     res.json({ studios: studios.map(publicStudio), page, limit, total });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/studios/featured", async (_req, res, next) => {
   try {
-    const studios = await db.collection("studios").find({ status: { $ne: "Draft" } })
-      .sort({ rating: -1, createdAt: -1 }).limit(6).toArray();
+    const studios = await db
+      .collection("studios")
+      .find({ status: { $ne: "Draft" } })
+      .sort({ rating: -1, createdAt: -1 })
+      .limit(6)
+      .toArray();
     res.json(studios.map(publicStudio));
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/studios/:id", async (req, res, next) => {
-  if (!isValidId(req.params.id)) return sendError(res, 400, "Invalid studio ID.");
+  if (!isValidId(req.params.id))
+    return sendError(res, 400, "Invalid studio ID.");
   try {
-    const studio = await db.collection("studios").findOne({ _id: new ObjectId(req.params.id), status: { $ne: "Draft" } });
+    const studio = await db
+      .collection("studios")
+      .findOne({ _id: new ObjectId(req.params.id), status: { $ne: "Draft" } });
     if (!studio) return sendError(res, 404, "Studio not found.");
     res.json(publicStudio(studio));
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.post("/studios", requireAuth, async (req, res, next) => {
@@ -267,74 +333,135 @@ app.post("/studios", requireAuth, async (req, res, next) => {
     };
     const result = await db.collection("studios").insertOne(studio);
     res.status(201).json({ ...studio, _id: result.insertedId });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/my-listings", requireAuth, async (req, res, next) => {
   try {
-    const studios = await db.collection("studios").find(studioOwnerFilter(req.user)).sort({ createdAt: -1 }).toArray();
+    const studios = await db
+      .collection("studios")
+      .find(studioOwnerFilter(req.user))
+      .sort({ createdAt: -1 })
+      .toArray();
     res.json(studios);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/my-listings/:id", requireAuth, async (req, res, next) => {
-  if (!isValidId(req.params.id)) return sendError(res, 400, "Invalid studio ID.");
+  if (!isValidId(req.params.id))
+    return sendError(res, 400, "Invalid studio ID.");
   try {
-    const studio = await db.collection("studios").findOne({ _id: new ObjectId(req.params.id), ...studioOwnerFilter(req.user) });
-    if (!studio) return sendError(res, 404, "Studio listing not found for this user.");
+    const studio = await db.collection("studios").findOne({
+      _id: new ObjectId(req.params.id),
+      ...studioOwnerFilter(req.user),
+    });
+    if (!studio)
+      return sendError(res, 404, "Studio listing not found for this user.");
     res.json(studio);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.patch("/studios/:id", requireAuth, async (req, res, next) => {
-  if (!isValidId(req.params.id)) return sendError(res, 400, "Invalid studio ID.");
+  if (!isValidId(req.params.id))
+    return sendError(res, 400, "Invalid studio ID.");
   const parsed = parseStudioInput(req.body, true);
   if (parsed.error) return sendError(res, 400, parsed.error);
-  if (Object.keys(parsed.value).length === 0) return sendError(res, 400, "Provide at least one studio field to update.");
+  if (Object.keys(parsed.value).length === 0)
+    return sendError(res, 400, "Provide at least one studio field to update.");
   try {
-    const result = await db.collection("studios").updateOne(
-      { _id: new ObjectId(req.params.id), ...studioOwnerFilter(req.user) },
-      { $set: { ...parsed.value, updatedAt: new Date() } },
-    );
-    if (!result.matchedCount) return sendError(res, 404, "Studio not found or you do not own it.");
+    const result = await db
+      .collection("studios")
+      .updateOne(
+        { _id: new ObjectId(req.params.id), ...studioOwnerFilter(req.user) },
+        { $set: { ...parsed.value, updatedAt: new Date() } },
+      );
+    if (!result.matchedCount)
+      return sendError(res, 404, "Studio not found or you do not own it.");
     res.json({ success: true });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.delete("/studios/:id", requireAuth, async (req, res, next) => {
-  if (!isValidId(req.params.id)) return sendError(res, 400, "Invalid studio ID.");
+  if (!isValidId(req.params.id))
+    return sendError(res, 400, "Invalid studio ID.");
   try {
     const studioId = new ObjectId(req.params.id);
-    const studio = await db.collection("studios").findOne({ _id: studioId, ...studioOwnerFilter(req.user) });
-    if (!studio) return sendError(res, 404, "Studio not found or you do not own it.");
-    const activeBooking = await db.collection("bookings").findOne({ studioId: studioId.toString(), status: { $in: ["Pending", "Confirmed"] } });
-    if (activeBooking) return sendError(res, 409, "This studio has active bookings and cannot be deleted yet.");
-    await db.collection("studios").deleteOne({ _id: studioId, ownerId: req.user.id });
+    const studio = await db
+      .collection("studios")
+      .findOne({ _id: studioId, ...studioOwnerFilter(req.user) });
+    if (!studio)
+      return sendError(res, 404, "Studio not found or you do not own it.");
+    const activeBooking = await db.collection("bookings").findOne({
+      studioId: studioId.toString(),
+      status: { $in: ["Pending", "Confirmed"] },
+    });
+    if (activeBooking)
+      return sendError(
+        res,
+        409,
+        "This studio has active bookings and cannot be deleted yet.",
+      );
+    await db
+      .collection("studios")
+      .deleteOne({ _id: studioId, ownerId: req.user.id });
     res.json({ success: true });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.post("/bookings", requireAuth, async (req, res, next) => {
-  const { studioId, bookingDate, startTime, endTime, guests, requirements = "" } = req.body ?? {};
-  if (typeof studioId !== "string" || !isValidId(studioId)) return sendError(res, 400, "A valid studioId is required.");
-  if (!isoDateIsValid(bookingDate)) return sendError(res, 400, "bookingDate must use YYYY-MM-DD format.");
+  const {
+    studioId,
+    bookingDate,
+    startTime,
+    endTime,
+    guests,
+    requirements = "",
+  } = req.body ?? {};
+  if (typeof studioId !== "string" || !isValidId(studioId))
+    return sendError(res, 400, "A valid studioId is required.");
+  if (!isoDateIsValid(bookingDate))
+    return sendError(res, 400, "bookingDate must use YYYY-MM-DD format.");
   const start = timeToMinutes(startTime);
   const end = timeToMinutes(endTime);
-  if (start === null || end === null || end <= start) return sendError(res, 400, "End time must be later than start time.");
-  if (!Number.isInteger(guests) || guests < 1) return sendError(res, 400, "Guests must be a positive whole number.");
-  if (typeof requirements !== "string" || requirements.length > 3000) return sendError(res, 400, "Requirements must be under 3000 characters.");
+  if (start === null || end === null || end <= start)
+    return sendError(res, 400, "End time must be later than start time.");
+  if (!Number.isInteger(guests) || guests < 1)
+    return sendError(res, 400, "Guests must be a positive whole number.");
+  if (typeof requirements !== "string" || requirements.length > 3000)
+    return sendError(res, 400, "Requirements must be under 3000 characters.");
   const today = new Date().toISOString().slice(0, 10);
-  if (bookingDate < today || (bookingDate === today && start <= new Date().getUTCHours() * 60 + new Date().getUTCMinutes())) {
+  if (
+    bookingDate < today ||
+    (bookingDate === today &&
+      start <= new Date().getUTCHours() * 60 + new Date().getUTCMinutes())
+  ) {
     return sendError(res, 400, "Choose a future date and time.");
   }
 
   try {
-    const studio = await db.collection("studios").findOne({ _id: new ObjectId(studioId), status: { $ne: "Draft" } });
+    const studio = await db
+      .collection("studios")
+      .findOne({ _id: new ObjectId(studioId), status: { $ne: "Draft" } });
     if (!studio) return sendError(res, 404, "Studio not found.");
-    const isOwnStudio = studio.ownerId === req.user.id ||
-      (req.user.emailVerified && req.user.email && studio.ownerEmail === req.user.email);
-    if (isOwnStudio) return sendError(res, 403, "You cannot book your own studio.");
-    if (Number.isInteger(studio.capacity) && guests > studio.capacity) return sendError(res, 400, "Guest count exceeds studio capacity.");
+    const isOwnStudio =
+      studio.ownerId === req.user.id ||
+      (req.user.emailVerified &&
+        req.user.email &&
+        studio.ownerEmail === req.user.email);
+    if (isOwnStudio)
+      return sendError(res, 403, "You cannot book your own studio.");
+    if (Number.isInteger(studio.capacity) && guests > studio.capacity)
+      return sendError(res, 400, "Guest count exceeds studio capacity.");
 
     const conflict = await db.collection("bookings").findOne({
       studioId,
@@ -343,7 +470,12 @@ app.post("/bookings", requireAuth, async (req, res, next) => {
       startMinutes: { $lt: end },
       endMinutes: { $gt: start },
     });
-    if (conflict) return sendError(res, 409, "This studio is already booked for part of that time.");
+    if (conflict)
+      return sendError(
+        res,
+        409,
+        "This studio is already booked for part of that time.",
+      );
 
     const hourlyRate = studio.hourlyRate;
     const securityDeposit = Number(studio.securityDeposit || 0);
@@ -372,31 +504,48 @@ app.post("/bookings", requireAuth, async (req, res, next) => {
     };
     const result = await db.collection("bookings").insertOne(booking);
     res.status(201).json({ booking: { ...booking, _id: result.insertedId } });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/my-bookings", requireAuth, async (req, res, next) => {
   try {
-    const bookings = await db.collection("bookings").find({ userId: req.user.id }).sort({ createdAt: -1 }).toArray();
+    const bookings = await db
+      .collection("bookings")
+      .find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .toArray();
     res.json(bookings);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.patch("/bookings/:id/cancel", requireAuth, async (req, res, next) => {
-  if (!isValidId(req.params.id)) return sendError(res, 400, "Invalid booking ID.");
+  if (!isValidId(req.params.id))
+    return sendError(res, 400, "Invalid booking ID.");
   try {
     const result = await db.collection("bookings").updateOne(
-      { _id: new ObjectId(req.params.id), userId: req.user.id, status: "Pending" },
+      {
+        _id: new ObjectId(req.params.id),
+        userId: req.user.id,
+        status: "Pending",
+      },
       { $set: { status: "Cancelled", cancelledAt: new Date() } },
     );
-    if (!result.matchedCount) return sendError(res, 404, "Pending booking not found for this user.");
+    if (!result.matchedCount)
+      return sendError(res, 404, "Pending booking not found for this user.");
     res.json({ success: true });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use((error, _req, res, _next) => {
   console.error("API error:", error);
-  if (error?.type === "entity.too.large") return sendError(res, 413, "Request body is too large.");
+  if (error?.type === "entity.too.large")
+    return sendError(res, 413, "Request body is too large.");
   return sendError(res, 500, "An unexpected server error occurred.");
 });
 
@@ -407,17 +556,23 @@ async function startServer() {
     db.collection("studios").createIndex({ ownerId: 1 }),
     db.collection("studios").createIndex({ status: 1, rating: -1 }),
     db.collection("bookings").createIndex({ userId: 1, createdAt: -1 }),
-    db.collection("bookings").createIndex({ studioId: 1, bookingDate: 1, status: 1, startMinutes: 1, endMinutes: 1 }),
+    db.collection("bookings").createIndex({
+      studioId: 1,
+      bookingDate: 1,
+      status: 1,
+      startMinutes: 1,
+      endMinutes: 1,
+    }),
   ]);
-  app.listen(PORT, () => console.log(`StudioNest API listening on port ${PORT}`));
+  // Local development fallback (Vercel will ignore this block)
+  if (process.env.NODE_ENV !== "production") {
+    app.listen(PORT, () =>
+      console.log(`StudioNest API listening locally on port ${PORT}`),
+    );
+  }
 }
-
+export default app;
 startServer().catch((error) => {
   console.error("Could not start StudioNest API:", error);
   process.exitCode = 1;
 });
-
-
-
-
-export default app;
