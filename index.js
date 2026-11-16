@@ -321,8 +321,7 @@ app.get("/", (_req, res) => {
   res.json({ message: "StudioNest server is running" });
 });
 
-// Add sample studios
-// Protect this route or remove it after inserting sample data.
+
 app.post("/add-sample-studios", async (_req, res, next) => {
   try {
     const studios = [
